@@ -1,4 +1,4 @@
-from cs336_data.convert import extract_text_from_warc
+from cs336_data.extract import extract_text_from_warc
 
 if __name__ == "__main__":
     warc_path = f"data/CC-MAIN-20250417135010-20250417165010-00065.warc.gz"

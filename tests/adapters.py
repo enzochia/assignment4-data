@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from cs336_data.convert import (
-    extract_text,
+from cs336_data.extract import (
+    extract_text
+)
+from cs336_data.quality_classifier import (
     identify_language,
     mask_pii,
     identify_harmful_content,
