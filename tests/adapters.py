@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import fasttext
 from typing import Any
 from cs336_data.extract import (
     extract_text
@@ -11,6 +12,7 @@ from cs336_data.quality_classifier import (
     identify_harmful_content,
     gopher_quality_filter
 )
+QUALITY_CLASSIFIER_PATH = "data/quality_classifier.bin"
 
 
 def run_extract_text_from_html_bytes(html_bytes: bytes) -> str | None:
@@ -42,7 +44,9 @@ def run_classify_toxic_speech(text: str) -> tuple[Any, float]:
 
 
 def run_classify_quality(text: str) -> tuple[Any, float]:
-    raise NotImplementedError
+    classifier = fasttext.load_model(QUALITY_CLASSIFIER_PATH)
+    labels, probs = classifier.predict(text.replace("\n", " "))
+    return "wiki" if labels[0] == "__label__positive" else "cc", probs[0]
 
 
 def run_gopher_quality_filter(text: str) -> bool:

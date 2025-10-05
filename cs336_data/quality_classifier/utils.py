@@ -1,5 +1,6 @@
 import os
 import re
+import random
 import fasttext
 from typing import Tuple, Any, List
 
@@ -60,10 +61,48 @@ def gopher_quality_filter(text: str) -> bool:
     line_list = text.splitlines()
     is_high_quality = True
     is_high_quality = is_high_quality and (50 <= len(word_list) <= 100000)
+    if not is_high_quality:
+        return False
     mean_len = sum(map(len, word_list)) / len(word_list)
     is_high_quality = is_high_quality and (3 <= mean_len <= 10)
+    if not is_high_quality:
+        return False
     portion_with_one_char = sum(map(lambda x: 1 if re.search(r"[A-Za-z]", x) is not None else 0, word_list)) / len(word_list)
     is_high_quality = is_high_quality and (0.8 <= portion_with_one_char)
+    if not is_high_quality:
+        return False
     portion_end_with_ellipsis = sum(map(lambda x: x[-3:] != "...", line_list)) / len(line_list)
     is_high_quality = is_high_quality and (0.3 < portion_end_with_ellipsis)
     return is_high_quality
+
+
+def sample_lines( 
+    path_input: str | os.PathLike, 
+    path_output: str | os.PathLike, 
+    max_lines: int = 1e4, 
+    max_iters: int = 1e5,
+    print_every: int = 1e4
+) -> None: 
+    """ 
+    Resevoir sampling. 
+    """ 
+    line_str_list = [] 
+    with open(path_input, "r") as f:
+        num_sampled_from = 0
+        for line in f:
+            num_sampled_from += 1
+            if num_sampled_from % print_every == 0:
+                print(f"Processing {num_sampled_from}th line.")
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if len(line_str_list) < max_lines:
+                line_str_list.append(line)
+            else:
+                rand_idx = random.randrange(num_sampled_from)
+                if rand_idx < max_lines:
+                    line_str_list[rand_idx] = line
+            if num_sampled_from >= max_iters:
+                break
+    with open(path_output, "w") as f:
+        f.write("\n".join(line_str_list))

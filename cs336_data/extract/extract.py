@@ -19,28 +19,48 @@ def extract_text(raw_html_bytes: bytes) -> str:
 
 
 def extract_text_from_warc(
-    path: str | os.PathLike,
-    num_iter: int
+    path_input: str | os.PathLike, 
+    path_output: str | os.PathLike, 
+    max_records: int = 1e5,
+    print_every: int = 1e4,
+    language: str = "en",
+    language_threshold: float = 0.75,
+    non_nsfw_threshold: float = 0.75,
+    non_toxic_threshold: float = 0.75,
+    positive_examples: bool = True
 ) -> None:
-    count = 0
-    with gzip.open(path, "rb") as f:
+    extracted_count = 0
+    passed_count = 0
+    extracted_text_list = []
+    with gzip.open(path_input, "rb") as f:
         for record in ArchiveIterator(f):
+            extracted_count += 1
+            if extracted_count % print_every == 0:
+                print(f"Extracting and filtering {extracted_count}th record.")
             if ((record.record_type == WarcRecordType.response) and
                 (record.content_length > 0)):
                 text = extract_text(record.reader.read())
-                print(f"################################# non-empty response #{count} #################################")
-                print(text[:100])
-                print(f"###################### language info ######################")
-                print(identify_language(text))
-                print(f"###################### mask pii ######################")
+                language_label, language_prob = identify_language(text)
+                if ((language_label != language) or
+                    (language_prob < language_threshold)):
+                    continue
                 text, _ = mask_pii(text)
-                print(text[:100])
-                print(f"###################### identify NSFW ######################")
-                print(identify_harmful_content(text))
-                print(f"###################### identify HATESPEECH ######################")
-                print(identify_harmful_content(text, "hatespeech"))
-                print(f"###################### Gopher quality filter ######################")
-                print(gopher_quality_filter(text))
-                count += 1
-                if count == num_iter:
+                nsfw_label, non_nsfw_prob = identify_harmful_content(text)
+                if ((nsfw_label != "non-nsfw") or
+                    (non_nsfw_prob < non_nsfw_threshold)):
+                    continue
+                toxic_label, non_toxic_prob = identify_harmful_content(text, "hatespeech")
+                if ((toxic_label != "non-toxic") or
+                    (non_toxic_prob < non_toxic_threshold)):
+                    continue
+                if (positive_examples and
+                    (not gopher_quality_filter(text))):
+                    continue
+                extracted_text_list.append(text)
+                passed_count += 1
+                if passed_count == max_records:
                     break
+    print(f"{passed_count} out of {extracted_count} extracted records passed the quality filters.")
+    with open(path_output, "w") as f:
+        for text_line in extracted_text_list:
+            f.write(text_line + "\n")
